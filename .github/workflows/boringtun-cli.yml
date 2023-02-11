@@ -1,0 +1,104 @@
+name: boringtun-cli
+
+on:
+  schedule:
+    - cron: "15 0 * * *"
+
+  workflow_dispatch:
+
+env:
+  TAG_NAME: 'boringtun-cli'
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+
+      - name: get release id
+        id: get_release_id
+        uses: actions/github-script@v6
+        with:
+          result-encoding: string
+          script: |
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: '${{ env.TAG_NAME }}',
+            });
+
+            console.log(release);
+
+            if (! release.data.id) {
+              throw "release ${{ env.TAG_NAME }} not found."
+            }
+
+            return release.data.id;
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - run: npm install node-fetch@v2 --save
+      - name: get latest version name
+        id: get_latest_version_name
+        uses: actions/github-script@v6
+        with:
+          result-encoding: string
+          script: |
+            const fetch = require("node-fetch");
+
+            const response = await fetch('https://crates.io/api/v1/crates/boringtun-cli');
+            const data = await response.json();
+
+            console.log(data);
+
+            if (! data.crate.newest_version) {
+              throw "crate not found."
+            }
+
+            return data.crate.newest_version;
+
+
+      - name: get asset id
+        id: get_asset_id
+        uses: actions/github-script@v6
+        with:
+          result-encoding: string
+          script: |
+            const assets = await github.rest.repos.listReleaseAssets({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ steps.get_release_id.outputs.result }},
+            });
+            
+            console.log(assets);
+
+            for (const asset of assets.data) {
+              if (asset.name === '${{ env.TAG_NAME }}-${{ steps.get_latest_version_name.outputs.result }}') {
+                return asset.id;
+              }
+            }
+
+            return '';
+
+      - name: build
+        if: ${{ steps.get_asset_id.outputs.result == '' }}
+        run: |
+          cargo install --version ${{ steps.get_latest_version_name.outputs.result }} --force boringtun-cli
+
+      - name: upload asset
+        if: ${{ steps.get_asset_id.outputs.result == '' }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs').promises;
+
+            const uploadAsset = await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ steps.get_release_id.outputs.result }},
+              name: '${{ env.TAG_NAME }}-${{ steps.get_latest_version_name.outputs.result }}',
+              data: await fs.readFile('/home/runner/.cargo/bin/boringtun-cli'),
+            });
+            
+            console.log(uploadAsset);
