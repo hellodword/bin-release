@@ -38,16 +38,16 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 16
-      - run: npm install node-fetch@v2 --save
+      - run: node -e 'var x = fetch' || npm install node-fetch@v2 --save
       - name: get latest version name
         id: get_latest_version_name
         uses: actions/github-script@v6
         with:
           result-encoding: string
           script: |
-            const fetch = require("node-fetch");
+            const nfetch = fetch || require("node-fetch");
 
-            const response = await fetch('https://crates.io/api/v1/crates/boringtun-cli');
+            const response = await nfetch('https://crates.io/api/v1/crates/boringtun-cli');
             const data = await response.json();
 
             console.log(data);
