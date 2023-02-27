@@ -74,7 +74,7 @@ jobs:
             console.log(assets);
 
             for (const asset of assets.data) {
-              if (asset.name === '${{ env.TAG_NAME }}-${{ steps.get_latest_version_name.outputs.result }}') {
+              if (asset.name === '${{ env.TAG_NAME }}-${{ steps.get_latest_version_name.outputs.result }}-x86_64') {
                 return asset.id;
               }
             }
@@ -97,7 +97,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               release_id: ${{ steps.get_release_id.outputs.result }},
-              name: '${{ env.TAG_NAME }}-${{ steps.get_latest_version_name.outputs.result }}',
+              name: '${{ env.TAG_NAME }}-${{ steps.get_latest_version_name.outputs.result }}-x86_64',
               data: await fs.readFile('/home/runner/.cargo/bin/boringtun-cli'),
             });
             
